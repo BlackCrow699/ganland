@@ -1,0 +1,43 @@
+# Unity generated folders
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+
+# IDE and generated project files
+.vs/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# OS and local tooling files
+.DS_Store
+Thumbs.db
+.codely-cli/
+.com-unity-codely.json
+
+# Unity player/build output
+/GrandLand/
+
+# Crash reports and temporary files
+sysinfo.txt
+*.tmp
+*.temp
+*.bak
+*.bak.meta
