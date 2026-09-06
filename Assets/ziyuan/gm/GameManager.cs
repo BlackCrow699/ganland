@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Cinemachine;
 
 public class GameManager : MonoBehaviour
 {
@@ -167,39 +166,8 @@ public class GameManager : MonoBehaviour
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name != "BattleForest") return;
-        StartCoroutine(AdjustExplorationCamera());
         if (!hasPendingPlayerReturn) return;
         StartCoroutine(RestorePlayerAfterSceneLoad());
-    }
-
-    IEnumerator AdjustExplorationCamera()
-    {
-        yield return null;
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        GameObject virtualCamera = GameObject.Find("Virtual Camera");
-        if (virtualCamera == null) virtualCamera = GameObject.Find("cm");
-        if (player == null || virtualCamera == null) yield break;
-
-        CinemachineVirtualCamera camera = virtualCamera.GetComponent<CinemachineVirtualCamera>();
-        if (camera == null) yield break;
-
-        // Octopath-style fixed diagonal exploration view.
-        camera.Follow = player.transform;
-        camera.LookAt = player.transform;
-        camera.m_Lens.FieldOfView = 45f;
-
-        CinemachineTransposer transposer = camera.GetCinemachineComponent<CinemachineTransposer>();
-        if (transposer != null)
-        {
-            transposer.m_BindingMode = CinemachineTransposer.BindingMode.WorldSpace;
-            transposer.m_FollowOffset = new Vector3(-8f, 8f, -8f);
-            transposer.m_XDamping = 0.35f;
-            transposer.m_YDamping = 0.35f;
-            transposer.m_ZDamping = 0.35f;
-        }
-
-        CinemachineComposer composer = camera.GetCinemachineComponent<CinemachineComposer>();
-        if (composer != null) composer.m_TrackedObjectOffset = new Vector3(0f, 1f, 0f);
     }
 
     IEnumerator RestorePlayerAfterSceneLoad()
