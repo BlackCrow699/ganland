@@ -6,7 +6,7 @@ public class PlayerMovement : MonoBehaviour
     private Animator anim;
 
     private Rigidbody rb;
-    private Transform cameraTransform;
+   private Transform cameraTransform;
     private Vector3 movement;
 
     void Start()
