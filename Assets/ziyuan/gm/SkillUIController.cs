@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -8,26 +9,25 @@ public class SkillUIController : MonoBehaviour
     public BattleManager battleManager;
     public GameObject skillPanel;
 
-    [Header("Skills")]
+    [Header("Legacy Skill References")]
     public Button normalSkillButton;
     public Button ultimateSkillButton;
     public Button healSkillButton;
-
-    [Header("Skill Names")]
     public TMP_Text normalSkillText;
     public TMP_Text ultimateSkillText;
     public TMP_Text healSkillText;
-
-    [Header("Skill MP Costs")]
     public TMP_Text normalSkillCostText;
     public TMP_Text ultimateSkillCostText;
     public TMP_Text healSkillCostText;
 
-    [Header("Description")]
+    [Header("Dynamic Skill References")]
+    public List<Button> skillButtons = new List<Button>();
+    public List<TMP_Text> skillNameTexts = new List<TMP_Text>();
+    public List<TMP_Text> skillCostTexts = new List<TMP_Text>();
+
+    [Header("Description and Targets")]
     public TMP_Text skillDescriptionText;
     public Button skillBackButton;
-
-    [Header("Enemy Targets")]
     public Button enemyTargetButton1;
     public Button enemyTargetButton2;
     public Button enemyTargetButton3;
@@ -36,18 +36,49 @@ public class SkillUIController : MonoBehaviour
     void Awake()
     {
         if (battleManager == null) battleManager = FindObjectOfType<BattleManager>();
+        BuildLegacyLists();
         BindListeners();
     }
 
-    void Update() { if (battleManager != null) Refresh(); }
+    void Update()
+    {
+        if (battleManager != null) Refresh();
+    }
+
+    void BuildLegacyLists()
+    {
+        if (skillButtons == null) skillButtons = new List<Button>();
+        if (skillNameTexts == null) skillNameTexts = new List<TMP_Text>();
+        if (skillCostTexts == null) skillCostTexts = new List<TMP_Text>();
+        if (skillButtons.Count == 0)
+        {
+            skillButtons.Add(normalSkillButton);
+            skillButtons.Add(ultimateSkillButton);
+            skillButtons.Add(healSkillButton);
+        }
+        if (skillNameTexts.Count == 0)
+        {
+            skillNameTexts.Add(normalSkillText);
+            skillNameTexts.Add(ultimateSkillText);
+            skillNameTexts.Add(healSkillText);
+        }
+        if (skillCostTexts.Count == 0)
+        {
+            skillCostTexts.Add(normalSkillCostText);
+            skillCostTexts.Add(ultimateSkillCostText);
+            skillCostTexts.Add(healSkillCostText);
+        }
+    }
 
     void BindListeners()
     {
         if (listenersBound || battleManager == null) return;
         listenersBound = true;
-        if (normalSkillButton != null) normalSkillButton.onClick.AddListener(() => battleManager.UseSkill(0));
-        if (ultimateSkillButton != null) ultimateSkillButton.onClick.AddListener(() => battleManager.UseSkill(1));
-        if (healSkillButton != null) healSkillButton.onClick.AddListener(() => battleManager.UseSkill(2));
+        for (int i = 0; i < skillButtons.Count; i++)
+        {
+            int index = i;
+            if (skillButtons[i] != null) skillButtons[i].onClick.AddListener(() => battleManager.UseSkill(index));
+        }
         if (skillBackButton != null) skillBackButton.onClick.AddListener(battleManager.CancelSkillSelection);
         if (enemyTargetButton1 != null) enemyTargetButton1.onClick.AddListener(() => battleManager.SelectSkillTarget(0));
         if (enemyTargetButton2 != null) enemyTargetButton2.onClick.AddListener(() => battleManager.SelectSkillTarget(1));
@@ -58,13 +89,17 @@ public class SkillUIController : MonoBehaviour
     {
         PlayerUnit player = battleManager.currentActor as PlayerUnit;
         if (skillPanel != null) skillPanel.SetActive(battleManager.IsSkillSelectionOpen);
-        RefreshSkill(0, player, normalSkillButton, normalSkillText, normalSkillCostText);
-        RefreshSkill(1, player, ultimateSkillButton, ultimateSkillText, ultimateSkillCostText);
-        RefreshSkill(2, player, healSkillButton, healSkillText, healSkillCostText);
+        for (int i = 0; i < skillButtons.Count; i++)
+        {
+            TMP_Text nameText = i < skillNameTexts.Count ? skillNameTexts[i] : null;
+            TMP_Text costText = i < skillCostTexts.Count ? skillCostTexts[i] : null;
+            RefreshSkill(i, player, skillButtons[i], nameText, costText);
+        }
         if (skillDescriptionText != null)
         {
             int selected = battleManager.SelectedSkillIndex;
-            skillDescriptionText.text = player != null && selected >= 0 && selected < player.skills.Count && player.IsSkillUnlocked(selected) ? player.skills[selected].description : string.Empty;
+            skillDescriptionText.text = player != null && selected >= 0 && selected < player.skills.Count && player.IsSkillUnlocked(selected)
+                ? player.skills[selected].description : string.Empty;
         }
         bool showTargets = battleManager.IsSelectingSkillTarget && battleManager.IsPlayerTurn;
         RefreshTarget(enemyTargetButton1, 0, showTargets);
@@ -78,8 +113,8 @@ public class SkillUIController : MonoBehaviour
         SkillDefinition skill = unlocked ? player.skills[index] : null;
         if (button != null)
         {
-            button.gameObject.SetActive(unlocked);
-            button.interactable = unlocked && player.currentMP >= skill.mpCost && battleManager.IsPlayerTurn && !battleManager.IsSelectingSkillTarget;
+            button.gameObject.SetActive(skill != null);
+            button.interactable = skill != null && player.currentMP >= skill.mpCost && battleManager.IsPlayerTurn && !battleManager.IsSelectingSkillTarget;
         }
         if (nameText != null) nameText.text = skill != null ? skill.skillName : string.Empty;
         if (costText != null) costText.text = skill != null ? "MP " + skill.mpCost : string.Empty;
@@ -88,7 +123,8 @@ public class SkillUIController : MonoBehaviour
     void RefreshTarget(Button button, int enemyIndex, bool show)
     {
         if (button == null) return;
-        CombatUnit enemy = enemyIndex < battleManager.spawnedEnemies.Count && battleManager.spawnedEnemies[enemyIndex] != null ? battleManager.spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
+        CombatUnit enemy = enemyIndex < battleManager.spawnedEnemies.Count && battleManager.spawnedEnemies[enemyIndex] != null
+            ? battleManager.spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
         button.gameObject.SetActive(show);
         button.interactable = show && enemy != null && enemy.currentHP > 0;
     }

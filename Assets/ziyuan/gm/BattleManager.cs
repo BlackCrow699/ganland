@@ -27,6 +27,9 @@ public class BattleManager : MonoBehaviour
     [Tooltip("队伍顺序就是编队顺序。留空时使用 GameManager.partyMembers，再回退到 playerCombatPrefab。")]
     public List<GameObject> partyCombatPrefabs = new List<GameObject>();
 
+    [Header("External Data")]
+    public BattleConfig battleConfig;
+
     public readonly List<GameObject> spawnedEnemies = new List<GameObject>();
     public readonly List<GameObject> spawnedParty = new List<GameObject>();
 
@@ -36,8 +39,6 @@ public class BattleManager : MonoBehaviour
     public float attackAnimationDuration = 0.5f;
     public string playerAttackAnimationState = "Craven_Attack";
     public string enemyAttackAnimationState = "Wolf_Attack";
-    public float skillDamageMultiplier = 1.5f;
-    public int skillManaCost = 10;
     public int potionHealAmount = 30;
     [Header("Battle Exit")]
     public string explorationSceneName = "BattleForest";
@@ -84,6 +85,20 @@ public class BattleManager : MonoBehaviour
         BeginNextTurn();
     }
 
+    void ApplyBattleConfig()
+    {
+        if (battleConfig == null) return;
+        enemyActionDelay = battleConfig.enemyActionDelay;
+        attackAnimationDuration = battleConfig.attackAnimationDuration;
+        playerAttackAnimationState = battleConfig.playerAttackAnimationState;
+        enemyAttackAnimationState = battleConfig.enemyAttackAnimationState;
+        potionHealAmount = battleConfig.potionHealAmount;
+        explorationSceneName = battleConfig.explorationSceneName;
+        returnToExplorationDelay = battleConfig.returnToExplorationDelay;
+        potionDropChance = battleConfig.potionDropChance;
+        etherDropChance = battleConfig.etherDropChance;
+        escapeChance = battleConfig.escapeChance;
+    }
     void Update()
     {
         EnsureResultUI();
@@ -346,18 +361,24 @@ public class BattleManager : MonoBehaviour
         enemyRoutineRunning = true;
         yield return new WaitForSeconds(enemyActionDelay);
 
+        EnemyUnit enemyUnit = enemy as EnemyUnit;
+        SkillDefinition selectedSkill = SelectEnemySkill(enemyUnit);
         CombatUnit target = FindFirstAlive(spawnedParty);
         if (target != null && enemy != null && enemy.currentHP > 0)
         {
-            Debug.Log($"{enemy.unitName} attacks {target.unitName}.");
-            int attackPower = enemy.attackPower;
-            if (defendingUnits.Contains(target))
-            {
-                attackPower = Mathf.Max(1, Mathf.CeilToInt(attackPower * 0.5f));
-                Debug.Log($"{target.unitName} blocks half of the incoming attack power.");
-            }
             yield return PlayAttackAnimation(enemy, false);
-            if (target != null && target.currentHP > 0) target.TakeDamage(attackPower);
+            if (selectedSkill != null)
+            {
+                if (enemyUnit != null) enemyUnit.currentMP = Mathf.Max(0, enemyUnit.currentMP - selectedSkill.mpCost);
+                ExecuteSkillEffect(enemy, selectedSkill, target);
+            }
+            else
+            {
+                int attackPower = enemy.attackPower;
+                if (defendingUnits.Contains(target))
+                    attackPower = Mathf.Max(1, Mathf.CeilToInt(attackPower * GetDefendDamageMultiplier()));
+                if (target.currentHP > 0) target.TakeDamage(attackPower);
+            }
             SyncPlayerData();
         }
 
@@ -365,6 +386,42 @@ public class BattleManager : MonoBehaviour
         AdvanceAfterAction();
     }
 
+    SkillDefinition SelectEnemySkill(EnemyUnit enemy)
+    {
+        if (enemy == null || enemy.skills == null) return null;
+        SkillDefinition best = null;
+        for (int i = 0; i < enemy.skills.Count; i++)
+        {
+            SkillDefinition candidate = enemy.skills[i];
+            if (candidate == null || candidate.type == SkillType.SelfHeal || candidate.mpCost > enemy.currentMP) continue;
+            if (candidate.needsEnemyTarget && FindFirstAlive(spawnedParty) == null) continue;
+            if (best == null || candidate.aiPriority > best.aiPriority) best = candidate;
+        }
+        return best;
+    }
+
+    void ExecuteSkillEffect(CombatUnit attacker, SkillDefinition skill, CombatUnit target)
+    {
+        if (attacker == null || skill == null) return;
+        int power = Mathf.Max(1, Mathf.RoundToInt(attacker.attackPower * skill.power));
+        if (skill.type == SkillType.AllEnemiesDamage)
+        {
+            for (int i = 0; i < spawnedParty.Count; i++)
+            {
+                CombatUnit unit = spawnedParty[i] != null ? spawnedParty[i].GetComponent<CombatUnit>() : null;
+                if (unit != null && unit.currentHP > 0) unit.TakeDamage(power);
+            }
+        }
+        else if (target != null && target.currentHP > 0)
+        {
+            target.TakeDamage(power);
+        }
+    }
+
+    float GetDefendDamageMultiplier()
+    {
+        return battleConfig != null ? battleConfig.defendDamageMultiplier : 0.5f;
+    }
     IEnumerator PlayAttackAnimation(CombatUnit unit, bool playerAnimation)
     {
         if (unit == null) yield break;
@@ -474,28 +531,20 @@ public class BattleManager : MonoBehaviour
         if (player == null) return;
 
         levelBeforeReward = player.level;
-        expRewardGained = 0;
+        EnemyUnit[] rewardEnemies = new EnemyUnit[spawnedEnemies.Count];
         for (int i = 0; i < spawnedEnemies.Count; i++)
-        {
-            EnemyUnit enemy = spawnedEnemies[i] != null ? spawnedEnemies[i].GetComponent<EnemyUnit>() : null;
-            if (enemy != null) expRewardGained += Mathf.Max(0, enemy.expReward);
-        }
-        if (expRewardGained <= 0) expRewardGained = 20;
+            rewardEnemies[i] = spawnedEnemies[i] != null ? spawnedEnemies[i].GetComponent<EnemyUnit>() : null;
+        expRewardGained = BattleRewardService.CalculateExperience(rewardEnemies, battleConfig != null ? battleConfig.fallbackExpReward : 20);
         player.GainExp(expRewardGained);
         levelAfterReward = player.level;
 
         InventoryManager inventory = InventoryManager.GetOrCreate();
-        int potionCount = 0;
-        int etherCount = 0;
-        for (int i = 0; i < spawnedEnemies.Count; i++)
-        {
-            if (Random.value <= potionDropChance) potionCount++;
-            if (Random.value <= etherDropChance) etherCount++;
-        }
+        int potionCount = BattleRewardService.RollDropCount(spawnedEnemies.Count, potionDropChance);
+        int etherCount = BattleRewardService.RollDropCount(spawnedEnemies.Count, etherDropChance);
         if (inventory != null)
         {
-            if (potionCount > 0) inventory.AddItem("potion", "Potion", "Restores 30 HP.", potionCount, 30, 0);
-            if (etherCount > 0) inventory.AddItem("ether", "Ether", "Restores 20 MP.", etherCount, 0, 20);
+            if (potionCount > 0) inventory.AddItem("potion", "Potion", "Restores " + (battleConfig != null ? battleConfig.potionHealAmount : 30) + " HP.", potionCount, battleConfig != null ? battleConfig.potionHealAmount : 30, 0);
+            if (etherCount > 0) inventory.AddItem("ether", "Ether", "Restores " + (battleConfig != null ? battleConfig.etherRestoreAmount : 20) + " MP.", etherCount, 0, battleConfig != null ? battleConfig.etherRestoreAmount : 20);
         }
 
         StringBuilder drops = new StringBuilder();

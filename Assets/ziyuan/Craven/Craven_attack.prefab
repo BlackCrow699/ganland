@@ -126,6 +126,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53cdad7b6f0efbb439a82ea4a1abe4de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  playerData: {fileID: 11400000, guid: a1000000000000000000000000000011, type: 2}
   unitName: Craven
   maxHP: 100
   currentHP: 100

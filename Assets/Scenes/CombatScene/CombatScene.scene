@@ -1,4 +1,4 @@
-%YAML 1.1
+YAML 1.1
 %TAG !u! tag:yousandi.cn,2023:
 --- !u!29 &1
 OcclusionCullingSettings:
@@ -7993,6 +7993,7 @@ MonoBehaviour:
   playerCombatPrefab: {fileID: 4631018521788901484, guid: 5e4df273bb9385848808f1402f815a32,
     type: 3}
   partyCombatPrefabs: []
+  battleConfig: {fileID: 11400000, guid: a10000000000000000000000000000014, type: 2}
   enemyActionDelay: 0.6
   attackAnimationDuration: 0.5
   playerAttackAnimationState: Craven_Attack

@@ -126,6 +126,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8cf6f5299f3bbe34b899feb57131cb87, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  enemyData: {fileID: 11400000, guid: a1000000000000000000000000000013, type: 2}
   unitName: wolf
   maxHP: 100
   currentHP: 0

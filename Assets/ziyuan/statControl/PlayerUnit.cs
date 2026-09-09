@@ -1,8 +1,6 @@
-using UnityEngine;
 using System;
 using System.Collections.Generic;
-
-public enum SkillType { SingleTargetDamage, AllEnemiesDamage, SelfHeal }
+using UnityEngine;
 
 [Serializable]
 public class SkillDefinition
@@ -15,10 +13,14 @@ public class SkillDefinition
     public SkillType type = SkillType.SingleTargetDamage;
     [Min(0f)] public float power = 1.5f;
     public bool needsEnemyTarget = true;
+    [Min(0)] public int aiPriority = 0;
 }
 
 public class PlayerUnit : CombatUnit
 {
+    [Header("External Data")]
+    public PlayerData playerData;
+
     [Header("Level & EXP")]
     public int level = 1;
     public int currentExp = 0;
@@ -38,6 +40,7 @@ public class PlayerUnit : CombatUnit
 
     protected override void Awake()
     {
+        ApplyPlayerData();
         if (GameManager.instance != null)
         {
             unitName = GameManager.instance.playerName;
@@ -56,20 +59,34 @@ public class PlayerUnit : CombatUnit
         {
             base.Awake();
         }
-        EnsureDefaultSkills();
+        if (skills == null || skills.Count == 0) EnsureDefaultSkills();
         RefreshUnlockedSkills();
+    }
+
+    void ApplyPlayerData()
+    {
+        if (playerData == null) return;
+        unitName = playerData.displayName;
+        maxHP = playerData.maxHP;
+        currentHP = maxHP;
+        maxMP = playerData.maxMP;
+        currentMP = maxMP;
+        attackPower = playerData.attackPower;
+        defense = playerData.defense;
+        speed = playerData.speed;
+        hpGrowth = playerData.hpGrowth;
+        mpGrowth = playerData.mpGrowth;
+        attackGrowth = playerData.attackGrowth;
+        defenseGrowth = playerData.defenseGrowth;
+        speedGrowth = playerData.speedGrowth;
+        expToNextLevel = CalculateExpRequirement(level);
+        skills = RuntimeDataHelpers.ToRuntimeSkills(playerData.skills);
     }
 
     public void GainExp(int amount)
     {
         currentExp += amount;
-        Debug.Log($"{unitName} gains {amount} EXP! EXP: {currentExp}/{expToNextLevel}");
-
-        while (currentExp >= expToNextLevel)
-        {
-            LevelUp();
-        }
-
+        while (currentExp >= expToNextLevel) LevelUp();
         SaveDataToGameManager();
     }
 
@@ -84,7 +101,6 @@ public class PlayerUnit : CombatUnit
     {
         currentExp -= expToNextLevel;
         level++;
-
         maxHP += hpGrowth;
         currentHP = maxHP;
         maxMP += mpGrowth;
@@ -92,7 +108,6 @@ public class PlayerUnit : CombatUnit
         attackPower += attackGrowth;
         defense += defenseGrowth;
         speed += speedGrowth;
-
         expToNextLevel = CalculateExpRequirement(level);
         RefreshUnlockedSkills();
         Debug.Log($"LEVEL UP! Lv.{level}, HP MAX: {maxHP}, MP MAX: {maxMP}, ATTACK: {attackPower}, DEFENSE: {defense}, SPEED: {speed}");
@@ -100,11 +115,6 @@ public class PlayerUnit : CombatUnit
 
     void EnsureDefaultSkills()
     {
-        // The first version intentionally exposes exactly three fixed skills.
-        if (skills != null && skills.Count == 3 &&
-            skills[0] != null && skills[0].skillId == "normal_skill" &&
-            skills[1] != null && skills[1].skillId == "ultimate_skill" &&
-            skills[2] != null && skills[2].skillId == "self_heal") return;
         skills = new List<SkillDefinition>
         {
             new SkillDefinition { skillId = "normal_skill", skillName = "普通技能", description = "对一个敌人造成伤害。", mpCost = 10, unlockLevel = 1, type = SkillType.SingleTargetDamage, power = 1.5f, needsEnemyTarget = true },
@@ -145,13 +155,14 @@ public class PlayerUnit : CombatUnit
 
     int CalculateExpRequirement(int currentLvl)
     {
-        return Mathf.RoundToInt(100 * Mathf.Pow(1.2f, currentLvl - 1));
+        int baseRequirement = playerData != null ? playerData.baseExpRequirement : 100;
+        float multiplier = playerData != null ? playerData.expGrowthMultiplier : 1.2f;
+        return Mathf.RoundToInt(baseRequirement * Mathf.Pow(multiplier, currentLvl - 1));
     }
 
     public void SaveDataToGameManager()
     {
         if (GameManager.instance == null) return;
-
         GameManager.instance.level = level;
         GameManager.instance.currentExp = currentExp;
         GameManager.instance.maxHP = maxHP;
