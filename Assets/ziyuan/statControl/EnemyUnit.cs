@@ -16,7 +16,7 @@ public class EnemyUnit : CombatUnit
     public int currentMP = 0;
 
     [Header("Skills")]
-    public List<SkillDefinition> skills = new List<SkillDefinition>();
+    public List<SkillData> skills = new List<SkillData>();
 
     protected override void Awake()
     {
@@ -31,7 +31,7 @@ public class EnemyUnit : CombatUnit
             goldReward = enemyData.goldReward;
             maxMP = enemyData.maxMP;
             currentMP = maxMP;
-            skills = RuntimeDataHelpers.ToRuntimeSkills(enemyData.skills);
+            skills = enemyData.skills != null ? new List<SkillData>(enemyData.skills) : new List<SkillData>();
         }
         base.Awake();
     }

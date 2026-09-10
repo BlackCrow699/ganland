@@ -135,6 +135,7 @@ public class GameManager : MonoBehaviour
     public int defense = 10;
     public int speed = 10;
     public List<string> unlockedSkillIds = new List<string>();
+    [HideInInspector] public bool hasPlayerRuntimeState;
 
     void Awake()
     {

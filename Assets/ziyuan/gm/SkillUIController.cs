@@ -110,14 +110,14 @@ public class SkillUIController : MonoBehaviour
     void RefreshSkill(int index, PlayerUnit player, Button button, TMP_Text nameText, TMP_Text costText)
     {
         bool unlocked = player != null && player.IsSkillUnlocked(index);
-        SkillDefinition skill = unlocked ? player.skills[index] : null;
+        SkillData skill = unlocked ? player.skills[index] : null;
         if (button != null)
         {
             button.gameObject.SetActive(skill != null);
-            button.interactable = skill != null && player.currentMP >= skill.mpCost && battleManager.IsPlayerTurn && !battleManager.IsSelectingSkillTarget;
+            button.interactable = skill != null && player.currentMP >= skill.manaCost && battleManager.IsPlayerTurn && !battleManager.IsSelectingSkillTarget;
         }
-        if (nameText != null) nameText.text = skill != null ? skill.skillName : string.Empty;
-        if (costText != null) costText.text = skill != null ? "MP " + skill.mpCost : string.Empty;
+        if (nameText != null) nameText.text = skill != null ? skill.displayName : string.Empty;
+        if (costText != null) costText.text = skill != null ? "MP " + skill.manaCost : string.Empty;
     }
 
     void RefreshTarget(Button button, int enemyIndex, bool show)

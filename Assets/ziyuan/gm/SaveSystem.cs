@@ -116,6 +116,7 @@ public static class SaveSystem
         manager.defense = data.defense;
         manager.speed = data.speed;
         manager.unlockedSkillIds = data.unlockedSkillIds != null ? new List<string>(data.unlockedSkillIds) : new List<string>();
+        manager.hasPlayerRuntimeState = true;
 
         InventoryManager inventory = InventoryManager.GetOrCreate();
         if (inventory != null && data.inventoryIds != null)

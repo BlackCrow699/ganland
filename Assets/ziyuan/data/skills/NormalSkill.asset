@@ -9,7 +9,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a1000000000000000000000000000020, type: 3}
+  m_Script: {fileID: 11500000, guid: 6f5d2c8a4b1e4f7a9c3d8e2b6a1f0c45, type: 3}
   m_Name: NormalSkill
   m_EditorClassIdentifier: 
-System.Collections.Hashtable.body
+skillId: normal_attack
+displayName: 普通攻击
+description: 对一个敌人造成伤害。
+manaCost: 10
+unlockLevel: 1
+effectType: 0
+effectPower: 1.5
+targetMode: 1
+aiPriority: 1

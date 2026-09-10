@@ -4,16 +4,17 @@ using UnityEngine;
 public class GameDataTests
 {
     [Test]
-    public void SkillDataConvertsToRuntimeDefinition()
+    public void SkillDataStoresCanonicalSkillValues()
     {
         SkillData data = ScriptableObject.CreateInstance<SkillData>();
         data.skillId = "test";
-        data.mpCost = 7;
-        data.power = 2.5f;
-        SkillDefinition runtime = data.ToRuntimeDefinition();
-        Assert.AreEqual("test", runtime.skillId);
-        Assert.AreEqual(7, runtime.mpCost);
-        Assert.AreEqual(2.5f, runtime.power);
+        data.manaCost = 7;
+        data.effectPower = 2.5f;
+        data.targetMode = SkillTargetMode.SingleEnemy;
+        Assert.AreEqual("test", data.skillId);
+        Assert.AreEqual(7, data.manaCost);
+        Assert.AreEqual(2.5f, data.effectPower);
+        Assert.IsTrue(data.NeedsEnemyTarget);
         Object.DestroyImmediate(data);
     }
 
@@ -23,12 +24,24 @@ public class GameDataTests
         GameObject go = new GameObject("enemy");
         EnemyUnit enemy = go.AddComponent<EnemyUnit>();
         enemy.currentMP = 10;
-        enemy.skills.Add(new SkillDefinition { skillId = "low", mpCost = 1, aiPriority = 1, needsEnemyTarget = true });
-        enemy.skills.Add(new SkillDefinition { skillId = "high", mpCost = 10, aiPriority = 5, needsEnemyTarget = true });
+        SkillData low = ScriptableObject.CreateInstance<SkillData>();
+        low.skillId = "low";
+        low.manaCost = 1;
+        low.aiPriority = 1;
+        low.targetMode = SkillTargetMode.SingleEnemy;
+        SkillData high = ScriptableObject.CreateInstance<SkillData>();
+        high.skillId = "high";
+        high.manaCost = 10;
+        high.aiPriority = 5;
+        high.targetMode = SkillTargetMode.SingleEnemy;
+        enemy.skills.Add(low);
+        enemy.skills.Add(high);
         CombatUnit target = new GameObject("target").AddComponent<CombatUnit>();
-        SkillDefinition selected = BattleEnemyController.SelectSkill(enemy, target);
+        SkillData selected = BattleEnemyController.SelectSkill(enemy, target);
         Assert.AreEqual("high", selected.skillId);
         Object.DestroyImmediate(target.gameObject);
+        Object.DestroyImmediate(low);
+        Object.DestroyImmediate(high);
         Object.DestroyImmediate(go);
     }
 

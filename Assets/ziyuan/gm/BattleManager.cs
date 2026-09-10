@@ -71,6 +71,7 @@ public class BattleManager : MonoBehaviour
 
     void Start()
     {
+        ApplyBattleConfig();
         Canvas battleCanvas = FindObjectOfType<Canvas>();
         if (battleCanvas != null)
         {
@@ -250,14 +251,14 @@ public class BattleManager : MonoBehaviour
         if (!CanPlayerAct()) return;
         PlayerUnit player = currentActor as PlayerUnit;
         if (player == null || !player.IsSkillUnlocked(skillIndex)) return;
-        SkillDefinition skill = player.skills[skillIndex];
+        SkillData skill = player.skills[skillIndex];
         SelectedSkillIndex = skillIndex;
-        if (player.currentMP < skill.mpCost)
+        if (player.currentMP < skill.manaCost)
         {
-            Debug.Log($"Not enough MP for {skill.skillName}. Need {skill.mpCost}, current MP: {player.currentMP}.");
+            Debug.Log($"Not enough MP for {skill.displayName}. Need {skill.manaCost}, current MP: {player.currentMP}.");
             return;
         }
-        if (skill.needsEnemyTarget || skill.type == SkillType.SingleTargetDamage)
+        if (skill.NeedsEnemyTarget && !skill.IsAreaSkill)
         {
             pendingSkillIndex = skillIndex;
             selectingSkillTarget = true;
@@ -284,36 +285,21 @@ public class BattleManager : MonoBehaviour
     {
         PlayerUnit player = currentActor as PlayerUnit;
         if (player == null || skillIndex < 0 || skillIndex >= player.skills.Count) return;
-        SkillDefinition skill = player.skills[skillIndex];
-        player.currentMP -= skill.mpCost;
+        SkillData skill = player.skills[skillIndex];
+        player.currentMP -= skill.manaCost;
         player.SaveDataToGameManager();
         waitingForPlayerInput = false;
         StartCoroutine(ExecuteSkillRoutine(player, skill, enemyIndex));
     }
 
-    IEnumerator ExecuteSkillRoutine(PlayerUnit player, SkillDefinition skill, int enemyIndex)
+    IEnumerator ExecuteSkillRoutine(PlayerUnit player, SkillData skill, int enemyIndex)
     {
         yield return PlayAttackAnimation(player, true);
         if (!battleFinished)
         {
-            if (skill.type == SkillType.SelfHeal)
-            {
-                player.currentHP = Mathf.Min(player.maxHP, player.currentHP + Mathf.Max(1, Mathf.RoundToInt(skill.power)));
-                Debug.Log($"{player.unitName} uses {skill.skillName} and recovers HP.");
-            }
-            else if (skill.type == SkillType.AllEnemiesDamage)
-            {
-                for (int i = 0; i < spawnedEnemies.Count; i++)
-                {
-                    CombatUnit target = spawnedEnemies[i] != null ? spawnedEnemies[i].GetComponent<CombatUnit>() : null;
-                    if (target != null && target.currentHP > 0) target.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(player.attackPower * skill.power)));
-                }
-            }
-            else if (enemyIndex >= 0 && enemyIndex < spawnedEnemies.Count)
-            {
-                CombatUnit target = spawnedEnemies[enemyIndex] != null ? spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
-                if (target != null && target.currentHP > 0) target.TakeDamage(Mathf.Max(1, Mathf.RoundToInt(player.attackPower * skill.power)));
-            }
+            CombatUnit target = enemyIndex >= 0 && enemyIndex < spawnedEnemies.Count && spawnedEnemies[enemyIndex] != null
+                ? spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
+            BattleActionResolver.ApplySkill(player, skill, target, GetCombatUnits(spawnedEnemies));
             SyncPlayerData();
         }
         AdvanceAfterAction();
@@ -362,14 +348,14 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(enemyActionDelay);
 
         EnemyUnit enemyUnit = enemy as EnemyUnit;
-        SkillDefinition selectedSkill = SelectEnemySkill(enemyUnit);
+        SkillData selectedSkill = SelectEnemySkill(enemyUnit);
         CombatUnit target = FindFirstAlive(spawnedParty);
         if (target != null && enemy != null && enemy.currentHP > 0)
         {
             yield return PlayAttackAnimation(enemy, false);
             if (selectedSkill != null)
             {
-                if (enemyUnit != null) enemyUnit.currentMP = Mathf.Max(0, enemyUnit.currentMP - selectedSkill.mpCost);
+                if (enemyUnit != null) enemyUnit.currentMP = Mathf.Max(0, enemyUnit.currentMP - selectedSkill.manaCost);
                 ExecuteSkillEffect(enemy, selectedSkill, target);
             }
             else
@@ -386,36 +372,37 @@ public class BattleManager : MonoBehaviour
         AdvanceAfterAction();
     }
 
-    SkillDefinition SelectEnemySkill(EnemyUnit enemy)
+    SkillData SelectEnemySkill(EnemyUnit enemy)
     {
         if (enemy == null || enemy.skills == null) return null;
-        SkillDefinition best = null;
+        SkillData best = null;
         for (int i = 0; i < enemy.skills.Count; i++)
         {
-            SkillDefinition candidate = enemy.skills[i];
-            if (candidate == null || candidate.type == SkillType.SelfHeal || candidate.mpCost > enemy.currentMP) continue;
-            if (candidate.needsEnemyTarget && FindFirstAlive(spawnedParty) == null) continue;
+            SkillData candidate = enemy.skills[i];
+            if (candidate == null || candidate.IsSelfSkill || candidate.manaCost > enemy.currentMP) continue;
+            if (candidate.NeedsEnemyTarget && FindFirstAlive(spawnedParty) == null) continue;
             if (best == null || candidate.aiPriority > best.aiPriority) best = candidate;
         }
         return best;
     }
 
-    void ExecuteSkillEffect(CombatUnit attacker, SkillDefinition skill, CombatUnit target)
+    void ExecuteSkillEffect(CombatUnit attacker, SkillData skill, CombatUnit target)
     {
         if (attacker == null || skill == null) return;
-        int power = Mathf.Max(1, Mathf.RoundToInt(attacker.attackPower * skill.power));
-        if (skill.type == SkillType.AllEnemiesDamage)
+        BattleActionResolver.ApplySkill(attacker, skill, target, GetCombatUnits(spawnedParty));
+    }
+
+    List<CombatUnit> GetCombatUnits(List<GameObject> objects)
+    {
+        List<CombatUnit> units = new List<CombatUnit>();
+        if (objects == null) return units;
+        for (int i = 0; i < objects.Count; i++)
         {
-            for (int i = 0; i < spawnedParty.Count; i++)
-            {
-                CombatUnit unit = spawnedParty[i] != null ? spawnedParty[i].GetComponent<CombatUnit>() : null;
-                if (unit != null && unit.currentHP > 0) unit.TakeDamage(power);
-            }
+            if (objects[i] == null) continue;
+            CombatUnit unit = objects[i].GetComponent<CombatUnit>();
+            if (unit != null) units.Add(unit);
         }
-        else if (target != null && target.currentHP > 0)
-        {
-            target.TakeDamage(power);
-        }
+        return units;
     }
 
     float GetDefendDamageMultiplier()

@@ -1,20 +1,5 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
-
-[Serializable]
-public class SkillDefinition
-{
-    public string skillId = "power_strike";
-    public string skillName = "Power Strike";
-    [TextArea] public string description = "A powerful strike against one enemy.";
-    [Min(0)] public int mpCost = 10;
-    [Min(1)] public int unlockLevel = 1;
-    public SkillType type = SkillType.SingleTargetDamage;
-    [Min(0f)] public float power = 1.5f;
-    public bool needsEnemyTarget = true;
-    [Min(0)] public int aiPriority = 0;
-}
 
 public class PlayerUnit : CombatUnit
 {
@@ -35,7 +20,7 @@ public class PlayerUnit : CombatUnit
     public int currentMP = 50;
     public int mpGrowth = 5;
     [Header("Skills")]
-    public List<SkillDefinition> skills = new List<SkillDefinition>();
+    public List<SkillData> skills = new List<SkillData>();
     [SerializeField] private List<string> unlockedSkillIds = new List<string>();
 
     protected override void Awake()
@@ -43,6 +28,7 @@ public class PlayerUnit : CombatUnit
         ApplyPlayerData();
         if (GameManager.instance != null)
         {
+            InitializeNewPlayerStateIfNeeded();
             unitName = GameManager.instance.playerName;
             level = GameManager.instance.level;
             currentExp = GameManager.instance.currentExp;
@@ -59,8 +45,26 @@ public class PlayerUnit : CombatUnit
         {
             base.Awake();
         }
-        if (skills == null || skills.Count == 0) EnsureDefaultSkills();
+        if (skills == null || skills.Count == 0)
+            Debug.LogWarning($"{name} has no skills in PlayerData. Configure skills in the data asset.");
         RefreshUnlockedSkills();
+    }
+
+    void InitializeNewPlayerStateIfNeeded()
+    {
+        if (GameManager.instance == null || GameManager.instance.hasPlayerRuntimeState || playerData == null) return;
+        GameManager.instance.playerName = playerData.displayName;
+        GameManager.instance.level = 1;
+        GameManager.instance.currentExp = 0;
+        GameManager.instance.maxHP = playerData.maxHP;
+        GameManager.instance.currentHP = playerData.maxHP;
+        GameManager.instance.maxMP = playerData.maxMP;
+        GameManager.instance.currentMP = playerData.maxMP;
+        GameManager.instance.attackPower = playerData.attackPower;
+        GameManager.instance.defense = playerData.defense;
+        GameManager.instance.speed = playerData.speed;
+        GameManager.instance.unlockedSkillIds = new List<string>();
+        GameManager.instance.hasPlayerRuntimeState = true;
     }
 
     void ApplyPlayerData()
@@ -80,7 +84,7 @@ public class PlayerUnit : CombatUnit
         defenseGrowth = playerData.defenseGrowth;
         speedGrowth = playerData.speedGrowth;
         expToNextLevel = CalculateExpRequirement(level);
-        skills = RuntimeDataHelpers.ToRuntimeSkills(playerData.skills);
+        skills = playerData.skills != null ? new List<SkillData>(playerData.skills) : new List<SkillData>();
     }
 
     public void GainExp(int amount)
@@ -113,16 +117,6 @@ public class PlayerUnit : CombatUnit
         Debug.Log($"LEVEL UP! Lv.{level}, HP MAX: {maxHP}, MP MAX: {maxMP}, ATTACK: {attackPower}, DEFENSE: {defense}, SPEED: {speed}");
     }
 
-    void EnsureDefaultSkills()
-    {
-        skills = new List<SkillDefinition>
-        {
-            new SkillDefinition { skillId = "normal_skill", skillName = "普通技能", description = "对一个敌人造成伤害。", mpCost = 10, unlockLevel = 1, type = SkillType.SingleTargetDamage, power = 1.5f, needsEnemyTarget = true },
-            new SkillDefinition { skillId = "ultimate_skill", skillName = "大招", description = "对所有存活敌人造成伤害。", mpCost = 25, unlockLevel = 1, type = SkillType.AllEnemiesDamage, power = 2.0f, needsEnemyTarget = false },
-            new SkillDefinition { skillId = "self_heal", skillName = "回血", description = "恢复主角自己的 HP。", mpCost = 12, unlockLevel = 1, type = SkillType.SelfHeal, power = 35f, needsEnemyTarget = false }
-        };
-    }
-
     public void RefreshUnlockedSkills()
     {
         if (unlockedSkillIds == null) unlockedSkillIds = new List<string>();
@@ -130,7 +124,7 @@ public class PlayerUnit : CombatUnit
             unlockedSkillIds = new List<string>(GameManager.instance.unlockedSkillIds);
         for (int i = 0; i < skills.Count; i++)
         {
-            SkillDefinition skill = skills[i];
+            SkillData skill = skills[i];
             if (skill != null && level >= skill.unlockLevel && !unlockedSkillIds.Contains(skill.skillId)) unlockedSkillIds.Add(skill.skillId);
         }
         SaveSkillUnlocks();
@@ -146,9 +140,9 @@ public class PlayerUnit : CombatUnit
         return index >= 0 && index < skills.Count && skills[index] != null && unlockedSkillIds.Contains(skills[index].skillId);
     }
 
-    public List<SkillDefinition> GetUnlockedSkills()
+    public List<SkillData> GetUnlockedSkills()
     {
-        List<SkillDefinition> result = new List<SkillDefinition>();
+        List<SkillData> result = new List<SkillData>();
         for (int i = 0; i < skills.Count; i++) if (IsSkillUnlocked(i)) result.Add(skills[i]);
         return result;
     }
