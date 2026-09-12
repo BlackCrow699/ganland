@@ -43,14 +43,12 @@ public class BedSleep : MonoBehaviour
 
     bool IsPlayer(Collider other)
     {
-        if (other == null) return false;
-        return !requirePlayerTag || other.CompareTag("Player") ||
-            (other.transform.root != null && other.transform.root.CompareTag("Player"));
+        return InteractionPrompt.IsPlayer(other, requirePlayerTag);
     }
 
     Transform GetPlayerTransform(Collider other)
     {
-        return other.CompareTag("Player") ? other.transform : other.transform.root;
+        return InteractionPrompt.GetPlayerTransform(other);
     }
 
     public void Sleep()

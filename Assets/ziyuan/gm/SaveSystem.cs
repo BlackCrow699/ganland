@@ -7,6 +7,14 @@ using UnityEngine;
 public static class SaveSystem
 {
     [Serializable]
+    public class CharacterLoadoutSave
+    {
+        public string characterId;
+        public string weaponId;
+        public string armorId;
+    }
+
+    [Serializable]
     public class SaveData
     {
         public string sceneName;
@@ -28,6 +36,9 @@ public static class SaveSystem
         public int[] inventoryQuantities;
         public string[] defeatedEncounterIds;
         public Vector3[] defeatedEncounterPositions;
+        public int gold;
+        public string[] ownedEquipmentIds;
+        public List<CharacterLoadoutSave> loadouts;
         public long savedAtTicks;
     }
 
@@ -43,6 +54,7 @@ public static class SaveSystem
 
         InventoryManager inventory = InventoryManager.instance;
         if (inventory == null) inventory = InventoryManager.GetOrCreate();
+        EquipmentManager equipment = EquipmentManager.GetOrCreate();
         List<string> inventoryIds = new List<string>();
         List<int> inventoryQuantities = new List<int>();
         if (inventory != null && inventory.items != null)
@@ -53,6 +65,35 @@ public static class SaveSystem
                 if (item == null || string.IsNullOrEmpty(item.id)) continue;
                 inventoryIds.Add(item.id);
                 inventoryQuantities.Add(Mathf.Max(0, item.quantity));
+            }
+        }
+
+        List<string> ownedEquipmentIds = new List<string>();
+        if (equipment.ownedEquipment != null)
+        {
+            for (int i = 0; i < equipment.ownedEquipment.Count; i++)
+            {
+                EquipmentData item = equipment.ownedEquipment[i];
+                if (item != null && !string.IsNullOrEmpty(item.equipmentId))
+                {
+                    ownedEquipmentIds.Add(item.equipmentId);
+                }
+            }
+        }
+
+        List<CharacterLoadoutSave> loadoutSaves = new List<CharacterLoadoutSave>();
+        if (equipment.loadouts != null)
+        {
+            for (int i = 0; i < equipment.loadouts.Count; i++)
+            {
+                CharacterLoadout loadout = equipment.loadouts[i];
+                if (loadout == null || string.IsNullOrEmpty(loadout.characterId)) continue;
+                loadoutSaves.Add(new CharacterLoadoutSave
+                {
+                    characterId = loadout.characterId,
+                    weaponId = loadout.weapon != null ? loadout.weapon.equipmentId : "",
+                    armorId = loadout.armor != null ? loadout.armor.equipmentId : ""
+                });
             }
         }
 
@@ -77,6 +118,9 @@ public static class SaveSystem
             inventoryQuantities = inventoryQuantities.ToArray(),
             defeatedEncounterIds = manager.defeatedEncounterIds != null ? manager.defeatedEncounterIds.ToArray() : new string[0],
             defeatedEncounterPositions = manager.defeatedEncounterPositions != null ? manager.defeatedEncounterPositions.ToArray() : new Vector3[0],
+            gold = equipment.gold,
+            ownedEquipmentIds = ownedEquipmentIds.ToArray(),
+            loadouts = loadoutSaves,
             savedAtTicks = DateTime.UtcNow.Ticks
         };
 
@@ -139,6 +183,35 @@ public static class SaveSystem
         if (data.defeatedEncounterPositions != null)
         {
             manager.defeatedEncounterPositions = new List<Vector3>(data.defeatedEncounterPositions);
+        }
+
+        EquipmentManager equipment = EquipmentManager.GetOrCreate();
+        equipment.gold = data.gold;
+
+        if (equipment.ownedEquipment == null) equipment.ownedEquipment = new List<EquipmentData>();
+        equipment.ownedEquipment.Clear();
+        EquipmentDatabase database = GameManager.instance != null ? GameManager.instance.equipmentDatabase : null;
+        if (database != null && data.ownedEquipmentIds != null)
+        {
+            for (int i = 0; i < data.ownedEquipmentIds.Length; i++)
+            {
+                EquipmentData item = database.Find(data.ownedEquipmentIds[i]);
+                if (item != null) equipment.ownedEquipment.Add(item);
+            }
+        }
+        if (equipment.loadouts == null) equipment.loadouts = new List<CharacterLoadout>();
+        equipment.loadouts.Clear();
+        if (database != null && data.loadouts != null)
+        {
+            for (int i = 0; i < data.loadouts.Count; i++)
+            {
+                CharacterLoadoutSave save = data.loadouts[i];
+                if (save == null || string.IsNullOrEmpty(save.characterId)) continue;
+                CharacterLoadout loadout = new CharacterLoadout { characterId = save.characterId };
+                loadout.weapon = database.Find(save.weaponId);
+                loadout.armor = database.Find(save.armorId);
+                equipment.loadouts.Add(loadout);
+            }
         }
     }
 

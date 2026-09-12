@@ -31,6 +31,9 @@ public class SkillUIController : MonoBehaviour
     public Button enemyTargetButton1;
     public Button enemyTargetButton2;
     public Button enemyTargetButton3;
+    public Button allyTargetButton1;
+    public Button allyTargetButton2;
+    public Button allyTargetButton3;
     private bool listenersBound;
 
     void Awake()
@@ -83,6 +86,9 @@ public class SkillUIController : MonoBehaviour
         if (enemyTargetButton1 != null) enemyTargetButton1.onClick.AddListener(() => battleManager.SelectSkillTarget(0));
         if (enemyTargetButton2 != null) enemyTargetButton2.onClick.AddListener(() => battleManager.SelectSkillTarget(1));
         if (enemyTargetButton3 != null) enemyTargetButton3.onClick.AddListener(() => battleManager.SelectSkillTarget(2));
+        if (allyTargetButton1 != null) allyTargetButton1.onClick.AddListener(() => battleManager.SelectSkillAllyTarget(0));
+        if (allyTargetButton2 != null) allyTargetButton2.onClick.AddListener(() => battleManager.SelectSkillAllyTarget(1));
+        if (allyTargetButton3 != null) allyTargetButton3.onClick.AddListener(() => battleManager.SelectSkillAllyTarget(2));
     }
 
     void Refresh()
@@ -102,9 +108,14 @@ public class SkillUIController : MonoBehaviour
                 ? player.skills[selected].description : string.Empty;
         }
         bool showTargets = battleManager.IsSelectingSkillTarget && battleManager.IsPlayerTurn;
-        RefreshTarget(enemyTargetButton1, 0, showTargets);
-        RefreshTarget(enemyTargetButton2, 1, showTargets);
-        RefreshTarget(enemyTargetButton3, 2, showTargets);
+        bool showAllyTargets = showTargets && battleManager.IsSelectingAllyTarget;
+        bool showEnemyTargets = showTargets && !battleManager.IsSelectingAllyTarget;
+        RefreshTarget(enemyTargetButton1, 0, showEnemyTargets);
+        RefreshTarget(enemyTargetButton2, 1, showEnemyTargets);
+        RefreshTarget(enemyTargetButton3, 2, showEnemyTargets);
+        RefreshAllyTarget(allyTargetButton1, 0, showAllyTargets);
+        RefreshAllyTarget(allyTargetButton2, 1, showAllyTargets);
+        RefreshAllyTarget(allyTargetButton3, 2, showAllyTargets);
     }
 
     void RefreshSkill(int index, PlayerUnit player, Button button, TMP_Text nameText, TMP_Text costText)
@@ -127,5 +138,14 @@ public class SkillUIController : MonoBehaviour
             ? battleManager.spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
         button.gameObject.SetActive(show);
         button.interactable = show && enemy != null && enemy.currentHP > 0;
+    }
+
+    void RefreshAllyTarget(Button button, int allyIndex, bool show)
+    {
+        if (button == null) return;
+        CombatUnit ally = allyIndex < battleManager.spawnedParty.Count && battleManager.spawnedParty[allyIndex] != null
+            ? battleManager.spawnedParty[allyIndex].GetComponent<CombatUnit>() : null;
+        button.gameObject.SetActive(show);
+        button.interactable = show && ally != null && ally.currentHP > 0;
     }
 }

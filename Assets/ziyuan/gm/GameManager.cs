@@ -10,6 +10,7 @@ public class GameManager : MonoBehaviour
     [Header("datare")]
     public Vector3 playerReturnPosition;
     [HideInInspector] public bool hasPendingPlayerReturn;
+    [HideInInspector] public string pendingSpawnPointId;
     // Legacy single-enemy field. Keep it for existing scene/prefab references.
     public GameObject enemyToSpawn;
     // The encounter trigger fills this list before loading the battle scene.
@@ -125,6 +126,7 @@ public class GameManager : MonoBehaviour
 
     [Header("charater file")]
     public string playerName = "Craven";
+    public string playerDataId = "craven";
     public int level = 1;
     public int currentExp = 0;
     public int maxHP = 100;
@@ -136,6 +138,9 @@ public class GameManager : MonoBehaviour
     public int speed = 10;
     public List<string> unlockedSkillIds = new List<string>();
     [HideInInspector] public bool hasPlayerRuntimeState;
+
+    [Header("Equipment Data")]
+    public EquipmentDatabase equipmentDatabase;
 
     void Awake()
     {
@@ -161,18 +166,27 @@ public class GameManager : MonoBehaviour
     public void QueuePlayerReturn(Vector3 position)
     {
         playerReturnPosition = position;
+        pendingSpawnPointId = string.Empty;
+        hasPendingPlayerReturn = true;
+    }
+
+    public void QueuePlayerSpawn(string spawnPointId)
+    {
+        pendingSpawnPointId = spawnPointId;
+        playerReturnPosition = Vector3.zero;
         hasPendingPlayerReturn = true;
     }
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name != "BattleForest") return;
         if (!hasPendingPlayerReturn) return;
         StartCoroutine(RestorePlayerAfterSceneLoad());
     }
 
     IEnumerator RestorePlayerAfterSceneLoad()
     {
+        Vector3 targetPosition = ResolvePendingSpawnPosition();
+
         // Wait until all map objects have completed Awake/Start and physics
         // has initialized, then place the player at the encounter position.
         for (int attempt = 0; attempt < 8; attempt++)
@@ -181,19 +195,49 @@ public class GameManager : MonoBehaviour
             GameObject player = GameObject.FindGameObjectWithTag("Player");
             if (player != null)
             {
-                player.transform.SetPositionAndRotation(playerReturnPosition, player.transform.rotation);
+                player.transform.SetPositionAndRotation(targetPosition, player.transform.rotation);
                 Rigidbody body = player.GetComponent<Rigidbody>();
                 if (body != null)
                 {
-                    body.position = playerReturnPosition;
+                    body.position = targetPosition;
                     body.velocity = Vector3.zero;
                     body.angularVelocity = Vector3.zero;
                 }
-                Debug.Log("Player restored to encounter position: " + playerReturnPosition);
+                Debug.Log("Player restored to position: " + targetPosition);
                 hasPendingPlayerReturn = false;
+                pendingSpawnPointId = string.Empty;
                 yield break;
             }
         }
-        Debug.LogWarning("Could not find a Player object to restore after returning from battle.");
+        Debug.LogWarning("Could not find a Player object to restore after scene load.");
+    }
+
+    Vector3 ResolvePendingSpawnPosition()
+    {
+        if (!string.IsNullOrEmpty(pendingSpawnPointId))
+        {
+            SceneSpawnPoint spawn = FindSpawnPoint(pendingSpawnPointId);
+            if (spawn != null)
+            {
+                return spawn.transform.position;
+            }
+
+            Debug.LogWarning("DoorTeleport: could not find SceneSpawnPoint with id '" + pendingSpawnPointId + "'. Falling back to stored position.");
+        }
+
+        return playerReturnPosition;
+    }
+
+    SceneSpawnPoint FindSpawnPoint(string id)
+    {
+        SceneSpawnPoint[] spawns = FindObjectsOfType<SceneSpawnPoint>(true);
+        for (int i = 0; i < spawns.Length; i++)
+        {
+            if (spawns[i] != null && spawns[i].spawnPointId == id)
+            {
+                return spawns[i];
+            }
+        }
+        return null;
     }
 }

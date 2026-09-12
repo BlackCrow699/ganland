@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 
 /// <summary>Pause menu controller for a hand-built Canvas panel.</summary>
 [ExecuteAlways]
@@ -12,23 +13,79 @@ public class PauseMenu : MonoBehaviour
 
     private bool isPaused;
 
+    private static PauseMenu persistentPauseMenu;
+
     void Awake()
     {
-        if (saveLoadController == null) saveLoadController = FindObjectOfType<SaveLoadController>();
-        if (FindObjectOfType<InventoryMenuController>() == null)
+        if (Application.isPlaying)
         {
-            gameObject.AddComponent<InventoryMenuController>();
+            if (persistentPauseMenu != null && persistentPauseMenu != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            persistentPauseMenu = this;
+            DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
+
+        if (saveLoadController == null) saveLoadController = FindObjectOfType<SaveLoadController>();
         if (pausePanel != null) pausePanel.SetActive(false);
         Time.timeScale = 1f;
+
+        if (Application.isPlaying)
+        {
+            EnsureSingleEventSystem();
+        }
     }
 
-    void OnEnable()
+    void OnDestroy()
     {
-        if (!Application.isPlaying && GetComponent<InventoryMenuController>() == null)
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (!Application.isPlaying) return;
+        EnsureSingleEventSystem();
+    }
+
+    void EnsureSingleEventSystem()
+    {
+        EventSystem[] systems = FindObjectsOfType<EventSystem>(true);
+        EventSystem keep = null;
+
+        for (int i = 0; i < systems.Length; i++)
         {
-            gameObject.AddComponent<InventoryMenuController>();
+            if (systems[i] != null && systems[i].gameObject.scene.name == "DontDestroyOnLoad")
+            {
+                keep = systems[i];
+                break;
+            }
         }
+        if (keep == null && systems.Length > 0)
+        {
+            keep = systems[0];
+        }
+
+        if (keep == null)
+        {
+            GameObject go = new GameObject("EventSystem");
+            go.AddComponent<EventSystem>();
+            go.AddComponent<StandaloneInputModule>();
+            keep = go.GetComponent<EventSystem>();
+        }
+
+        for (int i = 0; i < systems.Length; i++)
+        {
+            if (systems[i] != null && systems[i] != keep)
+            {
+                Destroy(systems[i].gameObject);
+            }
+        }
+
+        DontDestroyOnLoad(keep.gameObject);
     }
 
     void Update()
@@ -42,6 +99,13 @@ public class PauseMenu : MonoBehaviour
         if (partyMenu != null && partyMenu.IsPartyOpen)
         {
             partyMenu.CloseParty();
+            return;
+        }
+
+        EquipmentMenuController equipmentMenu = GetComponent<EquipmentMenuController>();
+        if (equipmentMenu == null) equipmentMenu = FindObjectOfType<EquipmentMenuController>();
+        if (equipmentMenu != null && equipmentMenu.TryCloseTopMost())
+        {
             return;
         }
 

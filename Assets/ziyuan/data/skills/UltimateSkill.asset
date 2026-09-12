@@ -1,5 +1,5 @@
 %YAML 1.1
-%TAG !u! tag:unity3d.com,2011:
+%TAG !u! tag:yousandi.cn,2023:
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12,12 +12,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f5d2c8a4b1e4f7a9c3d8e2b6a1f0c45, type: 3}
   m_Name: UltimateSkill
   m_EditorClassIdentifier: 
-skillId: ultimate_attack
-displayName: 终结技
-description: 对所有存活敌人造成伤害。
-manaCost: 25
-unlockLevel: 1
-effectType: 1
-effectPower: 2
-targetMode: 2
-aiPriority: 5
+  skillId: double_strike
+  displayName: "\u4E8C\u8FDE\u51FB"
+  description: "\u5BF9\u4E00\u540D\u654C\u4EBA\u8FDE\u7EED\u9020\u6210\u4E24\u6B21\u4F24\u5BB3\u3002"
+  manaCost: 25
+  unlockLevel: 1
+  effects:
+  - targetMode: 1
+    effectType: 0
+    stat: 0
+    valueMode: 2
+    value: 1.1
+    duration: 3
+  - targetMode: 1
+    effectType: 0
+    stat: 0
+    valueMode: 2
+    value: 1.1
+    duration: 3
+  aiPriority: 0
+  effectType: 0
+  effectPower: 0
+  targetMode: 1
+  legacyNeedsEnemyTarget: 1
+  legacyMigrated: 1

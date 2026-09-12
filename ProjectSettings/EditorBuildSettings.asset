@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/forest/BattleForest.scene
     guid: 97b9183c37e3f7f4f8edf3998bddd62e
+  - enabled: 1
+    path: Assets/Scenes/kingdom/kingdom.unity
+    guid: cda5df0599d29a74593beb7ddd1490be
   m_BuildProfiles: []
   m_configObjects: {}
   m_SlimFeaturesWeixinMiniGame:

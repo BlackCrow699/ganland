@@ -1,5 +1,5 @@
 %YAML 1.1
-%TAG !u! tag:unity3d.com,2011:
+%TAG !u! tag:yousandi.cn,2023:
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12,12 +12,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f5d2c8a4b1e4f7a9c3d8e2b6a1f0c45, type: 3}
   m_Name: NormalSkill
   m_EditorClassIdentifier: 
-skillId: normal_attack
-displayName: 普通攻击
-description: 对一个敌人造成伤害。
-manaCost: 10
-unlockLevel: 1
-effectType: 0
-effectPower: 1.5
-targetMode: 1
-aiPriority: 1
+  skillId: resolve
+  displayName: "\u51B3\u5FC3"
+  description: "\u9F13\u821E\u5168\u4F53\u961F\u53CB\uFF08\u5305\u62EC\u81EA\u5DF1\uFF09\uFF0C\u63D0\u5347\u653B\u51FB\u529B\u3002"
+  manaCost: 10
+  unlockLevel: 1
+  effects:
+  - targetMode: 4
+    effectType: 2
+    stat: 0
+    valueMode: 2
+    value: 0.25
+    duration: 3
+  aiPriority: 0
+  effectType: 0
+  effectPower: 0
+  targetMode: 1
+  legacyNeedsEnemyTarget: 1
+  legacyMigrated: 1

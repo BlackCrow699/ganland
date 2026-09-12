@@ -50,6 +50,22 @@ public class PlayerUnit : CombatUnit
         RefreshUnlockedSkills();
     }
 
+    public override int EffectiveAttack
+    {
+        get
+        {
+            return base.EffectiveAttack + EquipmentManager.GetOrCreate().EquipmentAttackBonus(playerData != null ? playerData.dataId : "");
+        }
+    }
+
+    public override int EffectiveDefense
+    {
+        get
+        {
+            return base.EffectiveDefense + EquipmentManager.GetOrCreate().EquipmentDefenseBonus(playerData != null ? playerData.dataId : "");
+        }
+    }
+
     void InitializeNewPlayerStateIfNeeded()
     {
         if (GameManager.instance == null || GameManager.instance.hasPlayerRuntimeState || playerData == null) return;

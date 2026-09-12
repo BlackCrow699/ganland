@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 821976660680aab49b5500e220bd5d79, type: 3}
+  m_Name: EquipmentDatabase
+  m_EditorClassIdentifier: 
+  items:
+  - {fileID: 11400000, guid: 48013978a585dd040b340476d57ae0cb, type: 2}
+  - {fileID: 11400000, guid: 745776a92c7aaf34ba334ee4d25a29f8, type: 2}

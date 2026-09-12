@@ -15,12 +15,12 @@ MonoBehaviour:
 dataId: slime
 displayName: slime
 maxHP: 50
-attackPower: 10
+attackPower: 14
 maxMP: 0
-defense: 5
-speed: 10
-expReward: 10
-goldReward: 10
+defense: 6
+speed: 9
+expReward: 12
+goldReward: 8
 skills:
 - {fileID: 11400000, guid: a1000000000000000000000000000004, type: 2}
 

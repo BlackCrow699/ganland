@@ -63,9 +63,11 @@ public class BattleManager : MonoBehaviour
     private bool waitingForPlayerInput;
     private bool enemyRoutineRunning;
     private bool selectingSkillTarget;
+    private bool selectingAllyTarget;
     private bool skillSelectionOpen;
     private int pendingSkillIndex = -1;
     public bool IsSelectingSkillTarget { get { return selectingSkillTarget; } }
+    public bool IsSelectingAllyTarget { get { return selectingAllyTarget; } }
     public bool IsSkillSelectionOpen { get { return skillSelectionOpen; } }
     public int SelectedSkillIndex { get; private set; } = -1;
 
@@ -129,9 +131,14 @@ public class BattleManager : MonoBehaviour
         turnOrder.Clear();
         AddUnitsToTurnOrder(spawnedParty);
         AddUnitsToTurnOrder(spawnedEnemies);
+        SortTurnOrderBySpeed();
+    }
+
+    void SortTurnOrderBySpeed()
+    {
         turnOrder.Sort((a, b) =>
         {
-            int speedCompare = b.speed.CompareTo(a.speed);
+            int speedCompare = b.EffectiveSpeed.CompareTo(a.EffectiveSpeed);
             return speedCompare != 0 ? speedCompare : a.GetInstanceID().CompareTo(b.GetInstanceID());
         });
     }
@@ -155,6 +162,11 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
+        if (turnNumber % turnOrder.Count == 0)
+        {
+            SortTurnOrderBySpeed();
+        }
+
         int safety = 0;
         do
         {
@@ -175,6 +187,7 @@ public class BattleManager : MonoBehaviour
 
         waitingForPlayerInput = currentActor is PlayerUnit;
         selectingSkillTarget = false;
+        selectingAllyTarget = false;
         skillSelectionOpen = false;
         pendingSkillIndex = -1;
         SelectedSkillIndex = -1;
@@ -198,7 +211,7 @@ public class BattleManager : MonoBehaviour
         }
 
         waitingForPlayerInput = false;
-        StartCoroutine(ExecutePlayerAttack(currentActor, target, currentActor.attackPower, "attacks"));
+        StartCoroutine(ExecutePlayerAttack(currentActor, target, currentActor.EffectiveAttack, "attacks"));
     }
 
     IEnumerator ExecutePlayerAttack(CombatUnit attacker, CombatUnit target, int power, string action)
@@ -232,6 +245,7 @@ public class BattleManager : MonoBehaviour
     {
         if (!CanPlayerAct()) return;
         selectingSkillTarget = false;
+        selectingAllyTarget = false;
         skillSelectionOpen = true;
         pendingSkillIndex = -1;
         SelectedSkillIndex = -1;
@@ -241,6 +255,7 @@ public class BattleManager : MonoBehaviour
     {
         if (battleFinished) return;
         selectingSkillTarget = false;
+        selectingAllyTarget = false;
         skillSelectionOpen = false;
         pendingSkillIndex = -1;
         SelectedSkillIndex = -1;
@@ -258,18 +273,28 @@ public class BattleManager : MonoBehaviour
             Debug.Log($"Not enough MP for {skill.displayName}. Need {skill.manaCost}, current MP: {player.currentMP}.");
             return;
         }
-        if (skill.NeedsEnemyTarget && !skill.IsAreaSkill)
+        if (skill.RequiresEnemyTarget)
         {
             pendingSkillIndex = skillIndex;
             selectingSkillTarget = true;
+            selectingAllyTarget = false;
             return;
         }
-        ExecuteSkill(skillIndex, -1);
+
+        if (skill.RequiresAllyTarget)
+        {
+            pendingSkillIndex = skillIndex;
+            selectingSkillTarget = true;
+            selectingAllyTarget = true;
+            return;
+        }
+
+        ExecuteSkill(skillIndex, null);
     }
 
     public void SelectSkillTarget(int enemyIndex)
     {
-        if (!CanPlayerAct() || !selectingSkillTarget || pendingSkillIndex < 0) return;
+        if (!CanPlayerAct() || !selectingSkillTarget || selectingAllyTarget || pendingSkillIndex < 0) return;
         if (enemyIndex < 0 || enemyIndex >= spawnedEnemies.Count) return;
         CombatUnit target = spawnedEnemies[enemyIndex] != null ? spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
         if (target == null || target.currentHP <= 0) return;
@@ -278,10 +303,25 @@ public class BattleManager : MonoBehaviour
         skillSelectionOpen = false;
         pendingSkillIndex = -1;
         SelectedSkillIndex = -1;
-        ExecuteSkill(skillIndex, enemyIndex);
+        ExecuteSkill(skillIndex, target);
     }
 
-    void ExecuteSkill(int skillIndex, int enemyIndex)
+    public void SelectSkillAllyTarget(int allyIndex)
+    {
+        if (!CanPlayerAct() || !selectingSkillTarget || !selectingAllyTarget || pendingSkillIndex < 0) return;
+        if (allyIndex < 0 || allyIndex >= spawnedParty.Count) return;
+        CombatUnit target = spawnedParty[allyIndex] != null ? spawnedParty[allyIndex].GetComponent<CombatUnit>() : null;
+        if (target == null || target.currentHP <= 0) return;
+        int skillIndex = pendingSkillIndex;
+        selectingSkillTarget = false;
+        selectingAllyTarget = false;
+        skillSelectionOpen = false;
+        pendingSkillIndex = -1;
+        SelectedSkillIndex = -1;
+        ExecuteSkill(skillIndex, target);
+    }
+
+    void ExecuteSkill(int skillIndex, CombatUnit target)
     {
         PlayerUnit player = currentActor as PlayerUnit;
         if (player == null || skillIndex < 0 || skillIndex >= player.skills.Count) return;
@@ -289,17 +329,15 @@ public class BattleManager : MonoBehaviour
         player.currentMP -= skill.manaCost;
         player.SaveDataToGameManager();
         waitingForPlayerInput = false;
-        StartCoroutine(ExecuteSkillRoutine(player, skill, enemyIndex));
+        StartCoroutine(ExecuteSkillRoutine(player, skill, target));
     }
 
-    IEnumerator ExecuteSkillRoutine(PlayerUnit player, SkillData skill, int enemyIndex)
+    IEnumerator ExecuteSkillRoutine(PlayerUnit player, SkillData skill, CombatUnit selectedTarget)
     {
         yield return PlayAttackAnimation(player, true);
         if (!battleFinished)
         {
-            CombatUnit target = enemyIndex >= 0 && enemyIndex < spawnedEnemies.Count && spawnedEnemies[enemyIndex] != null
-                ? spawnedEnemies[enemyIndex].GetComponent<CombatUnit>() : null;
-            BattleActionResolver.ApplySkill(player, skill, target, GetCombatUnits(spawnedEnemies));
+            BattleActionResolver.ApplySkill(player, skill, selectedTarget, GetCombatUnits(spawnedEnemies), GetCombatUnits(spawnedParty));
             SyncPlayerData();
         }
         AdvanceAfterAction();
@@ -348,8 +386,8 @@ public class BattleManager : MonoBehaviour
         yield return new WaitForSeconds(enemyActionDelay);
 
         EnemyUnit enemyUnit = enemy as EnemyUnit;
-        SkillData selectedSkill = SelectEnemySkill(enemyUnit);
         CombatUnit target = FindFirstAlive(spawnedParty);
+        SkillData selectedSkill = BattleEnemyController.SelectSkill(enemyUnit, target);
         if (target != null && enemy != null && enemy.currentHP > 0)
         {
             yield return PlayAttackAnimation(enemy, false);
@@ -360,7 +398,7 @@ public class BattleManager : MonoBehaviour
             }
             else
             {
-                int attackPower = enemy.attackPower;
+                int attackPower = enemy.EffectiveAttack;
                 if (defendingUnits.Contains(target))
                     attackPower = Mathf.Max(1, Mathf.CeilToInt(attackPower * GetDefendDamageMultiplier()));
                 if (target.currentHP > 0) target.TakeDamage(attackPower);
@@ -372,24 +410,10 @@ public class BattleManager : MonoBehaviour
         AdvanceAfterAction();
     }
 
-    SkillData SelectEnemySkill(EnemyUnit enemy)
-    {
-        if (enemy == null || enemy.skills == null) return null;
-        SkillData best = null;
-        for (int i = 0; i < enemy.skills.Count; i++)
-        {
-            SkillData candidate = enemy.skills[i];
-            if (candidate == null || candidate.IsSelfSkill || candidate.manaCost > enemy.currentMP) continue;
-            if (candidate.NeedsEnemyTarget && FindFirstAlive(spawnedParty) == null) continue;
-            if (best == null || candidate.aiPriority > best.aiPriority) best = candidate;
-        }
-        return best;
-    }
-
     void ExecuteSkillEffect(CombatUnit attacker, SkillData skill, CombatUnit target)
     {
         if (attacker == null || skill == null) return;
-        BattleActionResolver.ApplySkill(attacker, skill, target, GetCombatUnits(spawnedParty));
+        BattleActionResolver.ApplySkill(attacker, skill, target, GetCombatUnits(spawnedParty), GetCombatUnits(spawnedEnemies));
     }
 
     List<CombatUnit> GetCombatUnits(List<GameObject> objects)
@@ -449,6 +473,11 @@ public class BattleManager : MonoBehaviour
 
     void AdvanceAfterAction()
     {
+        if (currentActor != null)
+        {
+            currentActor.TickStatusEffects();
+        }
+
         if (CheckBattleEnded()) return;
         BeginNextTurn();
     }
@@ -525,6 +554,16 @@ public class BattleManager : MonoBehaviour
         player.GainExp(expRewardGained);
         levelAfterReward = player.level;
 
+        int goldGained = 0;
+        for (int i = 0; i < rewardEnemies.Length; i++)
+        {
+            if (rewardEnemies[i] != null) goldGained += Mathf.Max(0, rewardEnemies[i].goldReward);
+        }
+        if (goldGained > 0)
+        {
+            EquipmentManager.GetOrCreate().gold += goldGained;
+        }
+
         InventoryManager inventory = InventoryManager.GetOrCreate();
         int potionCount = BattleRewardService.RollDropCount(spawnedEnemies.Count, potionDropChance);
         int etherCount = BattleRewardService.RollDropCount(spawnedEnemies.Count, etherDropChance);
@@ -542,7 +581,7 @@ public class BattleManager : MonoBehaviour
             drops.Append("Ether x").Append(etherCount);
         }
         rewardDropSummary = drops.Length > 0 ? drops.ToString() : "None";
-        Debug.Log("Rewards: EXP +" + expRewardGained + ", Drops: " + rewardDropSummary);
+        Debug.Log("Rewards: EXP +" + expRewardGained + ", Gold +" + goldGained + ", Drops: " + rewardDropSummary);
     }
 
     public void ContinueAfterResult()

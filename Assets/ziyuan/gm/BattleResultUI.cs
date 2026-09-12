@@ -11,11 +11,12 @@ public class BattleResultUI : MonoBehaviour
     public TMP_Text resultText;
     public Button continueButton;
 
+    private static readonly Color ButtonColor = new Color(0.1f, 0.13f, 0.22f, 1f);
+
     void Awake()
     {
         if (battleManager == null) battleManager = FindObjectOfType<BattleManager>();
         BuildIfMissing();
-        Debug.Log("BattleResultUI initialized. Panel: " + (resultPanel != null ? resultPanel.name : "MISSING"));
         if (continueButton != null) continueButton.onClick.AddListener(Continue);
         if (resultPanel != null) resultPanel.SetActive(false);
     }
@@ -55,8 +56,7 @@ public class BattleResultUI : MonoBehaviour
         if (canvas == null) canvas = GetComponent<Canvas>();
         if (canvas == null) canvas = FindObjectOfType<Canvas>();
         if (canvas == null) return;
-        canvas.transform.localScale = Vector3.one;
-        canvas.transform.localScale = Vector3.one;
+
         resultPanel = new GameObject("BattleResultPanel_Auto");
         resultPanel.transform.SetParent(canvas.transform, false);
         resultPanel.transform.localScale = Vector3.one;
@@ -74,39 +74,8 @@ public class BattleResultUI : MonoBehaviour
         panelCanvas.overrideSorting = true;
         panelCanvas.sortingOrder = 1000;
         resultPanel.AddComponent<GraphicRaycaster>();
-        resultText = CreateText(resultPanel.transform, "", 22, new Vector2(0f, 35f), new Vector2(620f, 350f), TextAlignmentOptions.Center);
-        continueButton = CreateButton(resultPanel.transform, "CONTINUE", new Vector2(0f, -205f));
-    }
 
-    TMP_Text CreateText(Transform parent, string value, int size, Vector2 position, Vector2 dimensions, TextAlignmentOptions alignment)
-    {
-        GameObject obj = new GameObject("Text");
-        obj.transform.SetParent(parent, false);
-        TextMeshProUGUI text = obj.AddComponent<TextMeshProUGUI>();
-        text.text = value;
-        text.fontSize = size;
-        text.color = new Color(0.92f, 0.95f, 1f, 1f);
-        text.alignment = alignment;
-        text.enableWordWrapping = true;
-        RectTransform rect = text.GetComponent<RectTransform>();
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = dimensions;
-        return text;
-    }
-
-    Button CreateButton(Transform parent, string label, Vector2 position)
-    {
-        GameObject obj = new GameObject("ContinueButton");
-        obj.transform.SetParent(parent, false);
-        Image image = obj.AddComponent<Image>();
-        image.color = new Color(0.10f, 0.13f, 0.22f, 1f);
-        Button button = obj.AddComponent<Button>();
-        RectTransform rect = obj.GetComponent<RectTransform>();
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.anchoredPosition = position;
-        rect.sizeDelta = new Vector2(220f, 56f);
-        CreateText(obj.transform, label, 20, Vector2.zero, new Vector2(210f, 48f), TextAlignmentOptions.Center);
-        return button;
+        resultText = UIHelper.CreateText(resultPanel.transform, "", 22, new Vector2(0f, 35f), new Vector2(620f, 350f), TextAlignmentOptions.Center);
+        continueButton = UIHelper.CreateButton(resultPanel.transform, "CONTINUE", new Vector2(0f, -205f), new Vector2(220f, 56f), new Vector2(210f, 48f), 20, ButtonColor);
     }
 }

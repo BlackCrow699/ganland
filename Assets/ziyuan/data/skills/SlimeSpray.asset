@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f5d2c8a4b1e4f7a9c3d8e2b6a1f0c45, type: 3}
+  m_Name: SlimeSpray
+  m_EditorClassIdentifier: 
+  skillId: slime_spray
+  displayName: "\u7C98\u6DB2\u55B7\u5410"
+  description: "\u55B7\u51FA\u7C98\u6DB2\uFF0C\u964D\u4F4E\u4E00\u540D\u89D2\u8272\u7684\u901F\u5EA6\u3002"
+  manaCost: 0
+  unlockLevel: 1
+  effects:
+  - targetMode: 1
+    effectType: 2
+    stat: 0
+    valueMode: 2
+    value: 0.3
+    duration: 3
+  aiPriority: 0
+  effectType: 0
+  effectPower: 0
+  targetMode: 1
+  legacyNeedsEnemyTarget: 1
+  legacyMigrated: 1
